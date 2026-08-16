@@ -57,9 +57,33 @@ export default function OnboardingPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { router.push("/auth/login"); return; }
 
+    let merchantId: string | null = null;
     const { data: merchant } = await supabase
       .from("merchants").select("id").eq("auth_user_id", user.id).single();
-    if (!merchant) { router.push("/auth/login"); return; }
+
+    if (merchant) {
+      merchantId = (merchant as { id: string }).id;
+    } else {
+      // Auto-créer le profil marchand si absent
+      const { data: newMerchant, error: mError } = await supabase
+        .from("merchants")
+        .insert({
+          auth_user_id: user.id,
+          full_name: user.user_metadata?.full_name ?? user.email?.split("@")[0] ?? "Marchand",
+          email: user.email ?? "",
+          phone: form.whatsapp_number.replace(/\D/g, "") || "770000000",
+        } as never)
+        .select("id")
+        .single();
+
+      if (mError || !newMerchant) {
+        console.error("Merchant creation error:", mError);
+        setError("Erreur création profil marchand: " + (mError?.message ?? "Erreur inconnue"));
+        setIsLoading(false);
+        return;
+      }
+      merchantId = (newMerchant as { id: string }).id;
+    }
 
     // Vérifier unicité du slug
     const { data: existing } = await supabase
@@ -73,7 +97,7 @@ export default function OnboardingPage() {
     }
 
     const { error: createError } = await supabase.from("stores").insert({
-      merchant_id:      (merchant as { id: string }).id,
+      merchant_id:      merchantId,
       name:             form.name,
       slug:             form.slug,
       description:      form.description || null,
@@ -84,6 +108,7 @@ export default function OnboardingPage() {
     } as never);
 
     if (createError) {
+      console.error("Store creation error:", createError);
       setError(createError.message);
       setIsLoading(false);
       return;
