@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { calculateDeliveryFee } from "@/lib/delivery";
 
 interface OrderItemInput {
   product_id: string;
@@ -14,14 +15,12 @@ interface CustomerInput {
 interface DeliveryInput {
   recipient_name: string;
   recipient_phone: string;
-  city: string;
-  district: string;
+  city?: string;
+  district?: string;
   address_details?: string;
   landmark?: string;
   delivery_type: "home" | "pickup";
 }
-
-const DELIVERY_FEE_XOF = 1500; // Frais livraison fixes MVP
 
 /**
  * POST /api/orders/create
@@ -130,10 +129,11 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Totaux calculés entièrement côté serveur
-    const computedSubtotal    = verifiedItems.reduce((sum, i) => sum + i.line_total, 0);
-    const computedDeliveryFee = delivery.delivery_type === "pickup" ? 0 : DELIVERY_FEE_XOF;
-    const computedTotal       = computedSubtotal + computedDeliveryFee;
+    // Totaux calculés entièrement côté serveur (prix réels DB + tarif zone de livraison)
+    const computedSubtotal = verifiedItems.reduce((sum, i) => sum + i.line_total, 0);
+    const { fee: calculatedFee } = calculateDeliveryFee(delivery?.district, delivery?.city);
+    const computedDeliveryFee = delivery?.delivery_type === "pickup" ? 0 : calculatedFee;
+    const computedTotal = computedSubtotal + computedDeliveryFee;
 
     // ── 1. Upsert customer ─────────────────────────────────────────────────
     const { data: customerData, error: customerError } = await supabase

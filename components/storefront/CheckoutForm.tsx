@@ -7,9 +7,10 @@ import { Loader2, MessageCircle, CheckCircle, MapPin, User, CreditCard } from "l
 import type { Store } from "@/types/database.types";
 import { CheckoutFormSchema } from "@/shared/schemas";
 import type { z } from "zod";
-import { formatXOF, DAKAR_DISTRICTS, cn } from "@/lib/utils";
+import { formatXOF, cn } from "@/lib/utils";
 import { generateWhatsAppDeepLink as genWA } from "@/lib/whatsapp";
 import { useCart } from "@/hooks/useCart";
+import { calculateDeliveryFee, ALL_DISTRICTS_WITH_FEE } from "@/lib/delivery";
 
 // Use the inferred output type (after Zod transforms/defaults)
 type CheckoutFormInput = z.output<typeof CheckoutFormSchema>;
@@ -25,8 +26,6 @@ const PAYMENT_METHODS = [
   { value: "free_money",       label: "Free Money",       emoji: "🟢", desc: "Aucun frais" },
   { value: "cash_on_delivery", label: "À la livraison",   emoji: "💵", desc: "Paiement cash" },
 ] as const;
-
-const DELIVERY_FEE = 1500; // FCFA — fixe MVP
 
 export default function CheckoutForm({ store, onSuccess }: Props) {
   const [isLoading, setIsLoading] = useState(false);
@@ -51,7 +50,12 @@ export default function CheckoutForm({ store, onSuccess }: Props) {
 
   const deliveryType = watch("delivery_type");
   const paymentMethod = watch("payment_method");
-  const deliveryFee = deliveryType === "pickup" ? 0 : DELIVERY_FEE;
+  const watchedDistrict = watch("district");
+  const watchedCity = watch("city");
+
+  // Calcul dynamique des frais de livraison selon la position du client
+  const { fee: calculatedFee, zoneName } = calculateDeliveryFee(watchedDistrict, watchedCity);
+  const deliveryFee = deliveryType === "pickup" ? 0 : calculatedFee;
   const total = totalPrice + deliveryFee;
 
   const onSubmit: SubmitHandler<CheckoutFormInput> = async (data) => {
@@ -178,9 +182,14 @@ export default function CheckoutForm({ store, onSuccess }: Props) {
             <span className="tabular-nums">{formatXOF(totalPrice)}</span>
           </div>
           <div className="flex justify-between text-text-muted">
-            <span>Livraison</span>
-            <span className="tabular-nums">
-              {deliveryType === "pickup" ? "Gratuit" : formatXOF(DELIVERY_FEE)}
+            <span>
+              Livraison{" "}
+              {deliveryType === "home" && watchedDistrict && (
+                <span className="text-xs text-brand-600 font-normal">({watchedDistrict})</span>
+              )}
+            </span>
+            <span className="tabular-nums font-medium">
+              {deliveryType === "pickup" ? "Gratuit" : formatXOF(deliveryFee)}
             </span>
           </div>
           <div className="flex justify-between font-bold text-text text-base">
@@ -234,13 +243,17 @@ export default function CheckoutForm({ store, onSuccess }: Props) {
         {/* Type livraison */}
         <div className="grid grid-cols-2 gap-2 mb-3">
           {[
-            { value: "home",   label: "🏠 À domicile", desc: `+${formatXOF(DELIVERY_FEE)}` },
-            { value: "pickup", label: "🏪 Retrait",     desc: "Gratuit" },
+            {
+              value: "home",
+              label: "🏠 À domicile",
+              desc: watchedDistrict ? `+${formatXOF(deliveryFee)}` : "Selon quartier (dès 1 500 F)",
+            },
+            { value: "pickup", label: "🏪 Retrait", desc: "Gratuit" },
           ].map((opt) => (
             <label
               key={opt.value}
               className={cn(
-                "flex flex-col items-center p-3 rounded-xl border-2 cursor-pointer transition-all",
+                "flex flex-col items-center p-3 rounded-xl border-2 cursor-pointer transition-all text-center",
                 deliveryType === opt.value
                   ? "border-brand-500 bg-brand-50"
                   : "border-surface-border hover:border-brand-300"
@@ -253,7 +266,7 @@ export default function CheckoutForm({ store, onSuccess }: Props) {
                 className="sr-only"
               />
               <span className="text-sm font-medium text-text">{opt.label}</span>
-              <span className="text-xs text-text-muted">{opt.desc}</span>
+              <span className="text-xs text-text-muted mt-0.5">{opt.desc}</span>
             </label>
           ))}
         </div>
@@ -261,16 +274,25 @@ export default function CheckoutForm({ store, onSuccess }: Props) {
         {deliveryType === "home" && (
           <div className="space-y-3">
             <div>
-              <label className="label label-required">Quartier</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="label label-required mb-0">Quartier ou Ville</label>
+                {watchedDistrict && (
+                  <span className="text-xs font-semibold text-brand-600 bg-brand-50 px-2 py-0.5 rounded-full border border-brand-200">
+                    Frais : {formatXOF(deliveryFee)} ({zoneName})
+                  </span>
+                )}
+              </div>
               <input
                 {...register("district")}
                 list="districts-list"
                 className={cn("input", errors.district && "input-error")}
-                placeholder="Ex: Mermoz, Plateau, Almadies..."
+                placeholder="Tapez votre quartier (ex: Mermoz, Almadies, Keur Massar, Thiès...)"
               />
               <datalist id="districts-list">
-                {DAKAR_DISTRICTS.map((d) => (
-                  <option key={d} value={d} />
+                {ALL_DISTRICTS_WITH_FEE.map((d) => (
+                  <option key={d.name} value={d.name}>
+                    {d.name} — {formatXOF(d.fee)} ({d.zoneName})
+                  </option>
                 ))}
               </datalist>
               {errors.district && (
