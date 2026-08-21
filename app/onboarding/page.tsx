@@ -63,6 +63,20 @@ export default function OnboardingPage() {
 
     if (merchant) {
       merchantId = (merchant as { id: string }).id;
+
+      // ── Vérifier si une boutique existe déjà pour ce marchand ──────────────
+      const { data: existingStore } = await supabase
+        .from("stores").select("id").eq("merchant_id", merchantId).single();
+
+      if (existingStore) {
+        // Boutique déjà créée → redirection directe vers le dashboard
+        setStep(3);
+        setTimeout(() => {
+          router.push("/dashboard");
+          router.refresh();
+        }, 1500);
+        return;
+      }
     } else {
       // Auto-créer le profil marchand si absent
       const { data: newMerchant, error: mError } = await supabase
