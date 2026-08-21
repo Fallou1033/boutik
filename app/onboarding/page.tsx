@@ -69,12 +69,8 @@ export default function OnboardingPage() {
         .from("stores").select("id").eq("merchant_id", merchantId).single();
 
       if (existingStore) {
-        // Boutique déjà créée → redirection directe vers le dashboard
-        setStep(3);
-        setTimeout(() => {
-          router.push("/dashboard");
-          router.refresh();
-        }, 1500);
+        setError("Vous avez déjà une boutique créée. Un seul compte = une seule boutique. Rendez-vous sur votre tableau de bord pour la gérer.");
+        setIsLoading(false);
         return;
       }
     } else {
@@ -175,7 +171,19 @@ export default function OnboardingPage() {
 
         {/* Card */}
         <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl p-6 shadow-2xl">
-          {error && <div className="alert-error mb-4">{error}</div>}
+          {error && (
+            <div className="mb-4 p-4 bg-red-500/10 border border-red-500/30 rounded-xl">
+              <p className="text-red-400 text-sm font-medium">{error}</p>
+              {error.includes("déjà une boutique") && (
+                <button
+                  onClick={() => router.push("/dashboard")}
+                  className="mt-3 w-full py-2 bg-brand-500 hover:bg-brand-600 text-white text-sm font-semibold rounded-xl transition"
+                >
+                  Aller à mon tableau de bord →
+                </button>
+              )}
+            </div>
+          )}
 
           {/* Step 1 */}
           {step === 1 && (
