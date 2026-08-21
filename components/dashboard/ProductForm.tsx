@@ -76,25 +76,35 @@ export default function ProductForm({ storeId, product, mode }: Props) {
     setUploadingImage(true);
     const supabase = createClient();
 
-    for (const file of files) {
-      if (file.size > 5 * 1024 * 1024) {
-        alert(`${file.name} dépasse 5 Mo`);
-        continue;
-      }
-      const ext = file.name.split(".").pop();
-      const path = `${storeId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+    try {
+      for (const file of files) {
+        if (file.size > 5 * 1024 * 1024) {
+          alert(`${file.name} dépasse 5 Mo`);
+          continue;
+        }
+        const ext = file.name.split(".").pop() || "jpg";
+        const path = `${storeId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
 
-      const { data, error } = await supabase.storage
-        .from("product-images")
-        .upload(path, file, { cacheControl: "3600", upsert: false });
+        const { data, error } = await supabase.storage
+          .from("product-images")
+          .upload(path, file, { cacheControl: "3600", upsert: false });
 
-      if (!error && data) {
-        const { data: urlData } = supabase.storage.from("product-images").getPublicUrl(data.path);
-        setImages((prev) => [...prev, urlData.publicUrl]);
+        if (error) {
+          console.error("Storage upload error:", error);
+          alert(`Erreur d'upload pour ${file.name} : ${error.message}`);
+        } else if (data) {
+          const { data: urlData } = supabase.storage.from("product-images").getPublicUrl(data.path);
+          setImages((prev) => [...prev, urlData.publicUrl]);
+        }
       }
+    } catch (err: unknown) {
+      console.error("Upload catch error:", err);
+      const msg = err instanceof Error ? err.message : "Erreur inattendue";
+      alert(`Erreur lors de l'envoi de l'image : ${msg}`);
+    } finally {
+      setUploadingImage(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
-    setUploadingImage(false);
-    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const removeImage = async (url: string, index: number) => {
