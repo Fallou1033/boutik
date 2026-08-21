@@ -101,20 +101,27 @@ export function getInitials(name: string): string {
 }
 
 /**
- * getImageUrl — Construit une URL Supabase Storage optimisée (WebP + resize).
+ * getImageUrl — Retourne l'URL de l'image (gère les URLs complètes et relatives).
  */
 export function getImageUrl(
-  path: string,
+  pathOrUrl?: string | null,
   size: "thumb" | "medium" | "large" = "medium"
 ): string {
-  const sizes = {
-    thumb:  { width: 150, quality: 60 },
-    medium: { width: 400, quality: 75 },
-    large:  { width: 800, quality: 80 },
-  };
-  const { width, quality } = sizes[size];
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  return `${supabaseUrl}/storage/v1/render/image/public/${path}?width=${width}&quality=${quality}&format=webp`;
+  if (!pathOrUrl) return "";
+  // Si c'est déjà une URL complète (ex: https://...supabase.co/storage/v1/object/public/...)
+  if (
+    pathOrUrl.startsWith("http://") ||
+    pathOrUrl.startsWith("https://") ||
+    pathOrUrl.startsWith("data:") ||
+    pathOrUrl.startsWith("/")
+  ) {
+    return pathOrUrl;
+  }
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+  const cleanPath = pathOrUrl.startsWith("product-images/")
+    ? pathOrUrl
+    : `product-images/${pathOrUrl}`;
+  return `${supabaseUrl}/storage/v1/object/public/${cleanPath}`;
 }
 
 /**
