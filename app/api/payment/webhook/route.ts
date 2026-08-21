@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { checkCinetPayTransaction, generateIdempotencyKey } from "@/lib/cinetpay";
 
 /**
@@ -28,6 +28,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid body" }, { status: 400 });
   }
 
+  // ── FIX #3a : Vérification du secret webhook ───────────────────────────
+  const webhookSecret = process.env.WEBHOOK_SECRET;
+  if (webhookSecret) {
+    const receivedSecret = request.headers.get("x-cinetpay-secret");
+    if (receivedSecret !== webhookSecret) {
+      console.warn("Webhook: secret invalide reçu");
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+  }
+
   const {
     cpm_trans_id,
     cpm_site_id,
@@ -40,7 +50,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Données manquantes" }, { status: 400 });
   }
 
-  const supabase = await createClient();
+  // ── FIX #3b : Vérifier que le site_id correspond au nôtre ─────────────
+  const expectedSiteId = process.env.CINETPAY_SITE_ID;
+  if (expectedSiteId && cpm_site_id !== expectedSiteId) {
+    console.warn("Webhook: cpm_site_id invalide:", cpm_site_id);
+    return NextResponse.json({ error: "Invalid site_id" }, { status: 403 });
+  }
+
+  const supabase = createAdminClient();
 
   // 1. Récupérer la commande par sa référence (= transaction_id)
   const { data: orderRaw } = await supabase
@@ -78,14 +95,17 @@ export async function POST(request: NextRequest) {
   // 3. Vérification du paiement auprès de CinetPay (double-check sécurité)
   let verifiedStatus: "ACCEPTED" | "REFUSED" | "PENDING" = "PENDING";
   try {
-    const check = await checkCinetPayTransaction(cpm_trans_id, cpm_site_id);
+    const check = await checkCinetPayTransaction(cpm_trans_id, expectedSiteId || cpm_site_id);
     if (check.code === "00" && check.data) {
       verifiedStatus = check.data.status;
+    } else {
+      console.warn("CinetPay check returned non-00 code:", check.code, check.message);
+      verifiedStatus = cpm_result === "00" && webhookSecret ? "ACCEPTED" : "REFUSED";
     }
   } catch (err) {
-    console.error("CinetPay check error:", err);
-    // On fait confiance au webhook si la vérification échoue
-    verifiedStatus = cpm_result === "00" ? "ACCEPTED" : "REFUSED";
+    console.error("CinetPay verification check error:", err);
+    // Si la vérification échoue, on accepte uniquement si le webhookSecret était présent et vérifié
+    verifiedStatus = cpm_result === "00" && webhookSecret ? "ACCEPTED" : "PENDING";
   }
 
   // 4. Journaliser la réception du webhook

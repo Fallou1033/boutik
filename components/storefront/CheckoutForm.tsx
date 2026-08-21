@@ -30,8 +30,9 @@ const DELIVERY_FEE = 1500; // FCFA — fixe MVP
 
 export default function CheckoutForm({ store, onSuccess }: Props) {
   const [isLoading, setIsLoading] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   const [orderDone, setOrderDone] = useState<{ reference: string; waLink: string } | null>(null);
-  const { items, totalPrice } = useCart(store.id);
+  const { items, totalPrice, clearCart } = useCart(store.id);
 
   const {
     register,
@@ -55,6 +56,7 @@ export default function CheckoutForm({ store, onSuccess }: Props) {
 
   const onSubmit: SubmitHandler<CheckoutFormInput> = async (data) => {
     setIsLoading(true);
+    setFormError(null);
     try {
       const res = await fetch("/api/orders/create", {
         method: "POST",
@@ -63,11 +65,7 @@ export default function CheckoutForm({ store, onSuccess }: Props) {
           store_id: store.id,
           items: items.map((i) => ({
             product_id: i.product.id,
-            product_name: i.product.name,
-            product_image: i.product.images[0] ?? null,
-            unit_price: i.product.price,
             quantity: i.quantity,
-            line_total: i.product.price * i.quantity,
           })),
           customer: {
             full_name: data.full_name,
@@ -84,15 +82,20 @@ export default function CheckoutForm({ store, onSuccess }: Props) {
             delivery_fee: deliveryFee,
           },
           payment_method: data.payment_method,
-          subtotal: totalPrice,
-          delivery_fee: deliveryFee,
-          total,
           customer_notes: data.customer_notes,
         }),
       });
 
-      if (!res.ok) throw new Error("Erreur création commande");
-      const { reference } = await res.json();
+      const resData = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        throw new Error(resData?.error || "Erreur lors de la création de la commande.");
+      }
+
+      const reference = resData.reference;
+
+      // Vider le panier après création réussie
+      clearCart();
 
       // Génération lien WhatsApp
       const waLink = genWA(store.whatsapp_number, {
@@ -114,8 +117,9 @@ export default function CheckoutForm({ store, onSuccess }: Props) {
       });
 
       setOrderDone({ reference, waLink });
-    } catch {
-      alert("Une erreur est survenue. Veuillez réessayer.");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Une erreur est survenue. Veuillez réessayer.";
+      setFormError(msg);
     } finally {
       setIsLoading(false);
     }
@@ -152,6 +156,12 @@ export default function CheckoutForm({ store, onSuccess }: Props) {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="p-4 space-y-6">
+      {formError && (
+        <div className="p-3 bg-red-50 text-red-700 border border-red-200 rounded-xl text-sm font-medium">
+          {formError}
+        </div>
+      )}
+
       {/* Résumé commande */}
       <div className="card card-body bg-surface-subtle">
         <p className="text-sm font-medium text-text mb-3">📋 Résumé</p>

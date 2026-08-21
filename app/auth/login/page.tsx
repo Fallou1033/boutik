@@ -9,7 +9,10 @@ import { createClient } from "@/lib/supabase/client";
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") ?? "/dashboard";
+  const rawCallback = searchParams.get("callbackUrl") ?? "/dashboard";
+  // FIX #4 : Autoriser uniquement les URLs internes (commençant par /)
+  // Empêche les redirections vers des domaines externes type https://evil.com
+  const callbackUrl = rawCallback.startsWith("/") ? rawCallback : "/dashboard";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -29,7 +32,9 @@ function LoginForm() {
       setError(
         error.message.includes("Invalid login")
           ? "Email ou mot de passe incorrect."
-          : error.message
+          : error.message.includes("rate limit")
+          ? "Trop de tentatives. Veuillez patienter quelques minutes."
+          : "Une erreur est survenue. Veuillez réessayer."
       );
       setIsLoading(false);
     } else {
@@ -37,6 +42,7 @@ function LoginForm() {
       router.refresh();
     }
   };
+
 
   return (
     <div className="bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl p-6 shadow-2xl">
