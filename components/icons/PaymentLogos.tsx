@@ -6,37 +6,47 @@ interface LogoProps {
 }
 
 /**
- * Logo officiel Wave Sénégal (Bleu ciel #1CA9F2 + Manchot blanc + Vague)
+ * Logo officiel Wave Sénégal (Manchot officiel Wave + Fond Bleu Ciel)
  */
-export function WaveLogo({ className = "w-7 h-7", size }: LogoProps) {
+export function WaveLogo({ className = "w-8 h-8", size }: LogoProps) {
   return (
     <svg
-      viewBox="0 0 48 48"
+      viewBox="0 0 100 100"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       className={className}
       style={size ? { width: size, height: size } : undefined}
     >
-      <rect width="48" height="48" rx="12" fill="#1CA9F2" />
-      {/* Silhouette Manchot Wave */}
+      {/* Fond bleu officiel Wave */}
+      <rect width="100" height="100" rx="22" fill="#1DA1F2" />
+      
+      {/* Corps du manchot Wave (bleu foncé/noir) */}
       <path
-        d="M24 9C19.5 9 16 12.5 16 17C16 19.2 16.9 21.2 18.3 22.6L17 30C16.8 31.1 17.6 32 18.7 32H29.3C30.4 32 31.2 31.1 31 30L29.7 22.6C31.1 21.2 32 19.2 32 17C32 12.5 28.5 9 24 9Z"
-        fill="white"
+        d="M50 16C38 16 30 24 30 36C30 42 32 46 34 50L31 68C30.5 71 33 74 36 74H64C67 74 69.5 71 69 68L66 50C68 46 70 42 70 36C70 24 62 16 50 16Z"
+        fill="#0D2040"
       />
-      {/* Détails intérieur */}
-      <ellipse cx="24" cy="21" rx="4.5" ry="6" fill="#1CA9F2" />
-      <circle cx="21.5" cy="15" r="1.2" fill="#1CA9F2" />
-      <circle cx="26.5" cy="15" r="1.2" fill="#1CA9F2" />
+      
+      {/* Ventre blanc du manchot */}
+      <ellipse cx="50" cy="50" rx="14" ry="19" fill="#FFFFFF" />
+      
+      {/* Yeux */}
+      <circle cx="43" cy="32" r="3" fill="#FFFFFF" />
+      <circle cx="57" cy="32" r="3" fill="#FFFFFF" />
+      <circle cx="43" cy="32" r="1.5" fill="#0D2040" />
+      <circle cx="57" cy="32" r="1.5" fill="#0D2040" />
+      
       {/* Bec orange */}
-      <path d="M23 16.5L25 16.5L24 18.5L23 16.5Z" fill="#FFA500" />
-      {/* Pattes */}
-      <path d="M19 32L18 35L21 34L19 32Z" fill="#FFA500" />
-      <path d="M29 32L30 35L27 34L29 32Z" fill="#FFA500" />
-      {/* Vague blanche */}
+      <path d="M47 36L53 36L50 42L47 36Z" fill="#FF9E00" />
+      
+      {/* Pattes orange */}
+      <path d="M37 74L35 80L43 78L39 74H37Z" fill="#FF9E00" />
+      <path d="M63 74L65 80L57 78L61 74H63Z" fill="#FF9E00" />
+      
+      {/* Vague blanche stylisée en bas */}
       <path
-        d="M11 39C15 37 19 41 24 39C29 37 33 41 37 39"
-        stroke="white"
-        strokeWidth="2.5"
+        d="M18 88C28 83 38 93 50 88C62 83 72 93 82 88"
+        stroke="#FFFFFF"
+        strokeWidth="4"
         strokeLinecap="round"
       />
     </svg>
@@ -44,26 +54,38 @@ export function WaveLogo({ className = "w-7 h-7", size }: LogoProps) {
 }
 
 /**
- * Logo officiel Orange Money (Fond noir + Carré orange OM)
+ * Logo officiel Orange Money (Fond noir + Carré orange officiel OM)
  */
-export function OrangeMoneyLogo({ className = "w-7 h-7", size }: LogoProps) {
+export function OrangeMoneyLogo({ className = "w-8 h-8", size }: LogoProps) {
   return (
     <svg
-      viewBox="0 0 48 48"
+      viewBox="0 0 100 100"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       className={className}
       style={size ? { width: size, height: size } : undefined}
     >
-      <rect width="48" height="48" rx="12" fill="#000000" />
-      {/* Carré Orange signature */}
-      <rect x="7" y="7" width="34" height="34" rx="8" fill="#FF7900" />
-      {/* Symboles stylisés Orange Money */}
-      <circle cx="19" cy="24" r="6.5" stroke="white" strokeWidth="3" fill="none" />
+      {/* Fond noir */}
+      <rect width="100" height="100" rx="22" fill="#000000" />
+      
+      {/* Carré Orange vibrant officiel */}
+      <rect x="14" y="14" width="72" height="72" rx="14" fill="#FF7900" />
+      
+      {/* Logo officiel OM (Cercle blanc + Doubles chevrons) */}
+      <circle cx="39" cy="50" r="14" stroke="#FFFFFF" strokeWidth="6" fill="none" />
+      
+      {/* Flèches / chevrons dynamiques Orange Money */}
       <path
-        d="M26 17.5L31 24L26 30.5M30.5 17.5L35.5 24L30.5 30.5"
-        stroke="white"
-        strokeWidth="2.8"
+        d="M54 36L64 50L54 64"
+        stroke="#FFFFFF"
+        strokeWidth="6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M65 36L75 50L65 64"
+        stroke="#FFFFFF"
+        strokeWidth="6"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
@@ -72,46 +94,51 @@ export function OrangeMoneyLogo({ className = "w-7 h-7", size }: LogoProps) {
 }
 
 /**
- * Logo officiel Free Money Sénégal (Vert #00A859 + Rouge Free)
+ * Logo officiel Free Money Sénégal (Vert officiel #00A859 + Rouge Free)
  */
-export function FreeMoneyLogo({ className = "w-7 h-7", size }: LogoProps) {
+export function FreeMoneyLogo({ className = "w-8 h-8", size }: LogoProps) {
   return (
     <svg
-      viewBox="0 0 48 48"
+      viewBox="0 0 100 100"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       className={className}
       style={size ? { width: size, height: size } : undefined}
     >
-      <rect width="48" height="48" rx="12" fill="#00A859" />
-      {/* Badge central blanc */}
-      <circle cx="24" cy="24" r="16" fill="white" />
-      {/* Typographie Free stylisée */}
+      {/* Fond vert Free Money officiel */}
+      <rect width="100" height="100" rx="22" fill="#00A859" />
+      
+      {/* Cercle central blanc */}
+      <circle cx="50" cy="50" r="36" fill="#FFFFFF" />
+      
+      {/* Wordmark officiel 'free' en rouge italic signature */}
       <text
-        x="24"
-        y="22.5"
+        x="50"
+        y="46"
         textAnchor="middle"
         dominantBaseline="central"
-        fontFamily="sans-serif"
+        fontFamily="'Arial Black', 'Trebuchet MS', sans-serif"
         fontWeight="900"
-        fontSize="13"
+        fontSize="30"
         fontStyle="italic"
+        letterSpacing="-1"
         fill="#E60000"
       >
         free
       </text>
-      {/* Badge MONEY */}
-      <rect x="13" y="27" width="22" height="6.5" rx="3" fill="#00A859" />
+      
+      {/* Bandeau MONEY en vert Free */}
+      <rect x="22" y="58" width="56" height="15" rx="7" fill="#00A859" />
       <text
-        x="24"
-        y="31.2"
+        x="50"
+        y="66.5"
         textAnchor="middle"
         dominantBaseline="central"
         fontFamily="sans-serif"
         fontWeight="800"
-        fontSize="4.8"
-        letterSpacing="0.8"
-        fill="white"
+        fontSize="10"
+        letterSpacing="2"
+        fill="#FFFFFF"
       >
         MONEY
       </text>
@@ -120,24 +147,26 @@ export function FreeMoneyLogo({ className = "w-7 h-7", size }: LogoProps) {
 }
 
 /**
- * Logo Paiement Cash à la livraison
+ * Logo Paiement Cash à la livraison (Billet de banque stylisé)
  */
-export function CashDeliveryLogo({ className = "w-7 h-7", size }: LogoProps) {
+export function CashDeliveryLogo({ className = "w-8 h-8", size }: LogoProps) {
   return (
     <svg
-      viewBox="0 0 48 48"
+      viewBox="0 0 100 100"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       className={className}
       style={size ? { width: size, height: size } : undefined}
     >
-      <rect width="48" height="48" rx="12" fill="#059669" />
-      {/* Billet de banque stylisé */}
-      <rect x="8" y="14" width="32" height="20" rx="4" fill="white" />
-      <rect x="11" y="17" width="26" height="14" rx="2" stroke="#059669" strokeWidth="1.6" fill="none" />
-      <circle cx="24" cy="24" r="4" fill="#059669" />
-      <circle cx="14.5" cy="24" r="1.5" fill="#059669" />
-      <circle cx="33.5" cy="24" r="1.5" fill="#059669" />
+      {/* Fond émeraude */}
+      <rect width="100" height="100" rx="22" fill="#059669" />
+      
+      {/* Billet de banque */}
+      <rect x="18" y="30" width="64" height="40" rx="8" fill="#FFFFFF" />
+      <rect x="24" y="36" width="52" height="28" rx="4" stroke="#059669" strokeWidth="3" fill="none" />
+      <circle cx="50" cy="50" r="8" fill="#059669" />
+      <circle cx="31" cy="50" r="3" fill="#059669" />
+      <circle cx="69" cy="50" r="3" fill="#059669" />
     </svg>
   );
 }
@@ -145,7 +174,7 @@ export function CashDeliveryLogo({ className = "w-7 h-7", size }: LogoProps) {
 /**
  * Composant générique PaymentLogo
  */
-export function PaymentLogo({ method, className = "w-7 h-7" }: { method: string; className?: string }) {
+export function PaymentLogo({ method, className = "w-8 h-8" }: { method: string; className?: string }) {
   switch (method?.toLowerCase()) {
     case "wave":
       return <WaveLogo className={className} />;
