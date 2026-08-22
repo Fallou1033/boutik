@@ -84,7 +84,7 @@ export default function CheckoutForm({ store, onSuccess }: Props) {
             address_details: data.address_details,
             landmark: data.landmark,
             delivery_type: data.delivery_type,
-            delivery_fee: deliveryFee,
+            // M-2: delivery_fee retiré — toujours recalculé côté serveur
           },
           payment_method: data.payment_method,
           customer_notes: data.customer_notes,
@@ -99,10 +99,8 @@ export default function CheckoutForm({ store, onSuccess }: Props) {
 
       const reference = resData.reference;
 
-      // Vider le panier après création réussie
-      clearCart();
-
-      // Génération lien WhatsApp
+      // L-3: Génération lien WhatsApp AVANT de vider le panier
+      // pour préserver le contexte si genWA() lève une exception.
       const waLink = genWA(store.whatsapp_number, {
         reference,
         storeName: store.name,
@@ -121,6 +119,8 @@ export default function CheckoutForm({ store, onSuccess }: Props) {
         paymentMethod: data.payment_method,
       });
 
+      // Vider le panier uniquement après avoir tout généré avec succès
+      clearCart();
       setOrderDone({ reference, waLink });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Une erreur est survenue. Veuillez réessayer.";
@@ -129,6 +129,7 @@ export default function CheckoutForm({ store, onSuccess }: Props) {
       setIsLoading(false);
     }
   };
+
 
   const onInvalid = (fieldErrors: typeof errors) => {
     if (fieldErrors.phone) {

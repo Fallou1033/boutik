@@ -14,10 +14,11 @@ interface OrderSummaryForWhatsApp {
   total: number;
   customerName: string;
   customerPhone: string;
-  district: string;
-  landmark?: string;
+  district?: string | null;
+  landmark?: string | null;
   paymentMethod: Order["payment_method"];
 }
+
 
 const PAYMENT_LABELS: Record<string, string> = {
   wave:             "💙 Wave",
@@ -66,12 +67,13 @@ export function generateWhatsAppDeepLink(
     `👤 *CLIENT:*`,
     `   Nom:      ${order.customerName}`,
     `   Tél:      ${order.customerPhone}`,
-    `   Quartier: ${order.district}`,
+    order.district ? `   Quartier: ${order.district}` : `   Mode:     Retrait en boutique (Pickup)`,
     order.landmark ? `   Repère:   ${order.landmark}` : null,
     ``,
     `━━━━━━━━━━━━━━━━━━━━`,
     `_Envoyé via Boutik_ 🔗`,
   ]
+
     .filter((line) => line !== null)
     .join("\n");
 

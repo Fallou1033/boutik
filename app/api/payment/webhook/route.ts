@@ -28,15 +28,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid body" }, { status: 400 });
   }
 
-  // ── FIX #3a : Vérification du secret webhook ───────────────────────────
+  // ── FIX : Vérification du secret webhook (obligatoire) ────────────────
   const webhookSecret = process.env.WEBHOOK_SECRET;
-  if (webhookSecret) {
-    const receivedSecret = request.headers.get("x-cinetpay-secret");
-    if (receivedSecret !== webhookSecret) {
-      console.warn("Webhook: secret invalide reçu");
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+  if (!webhookSecret) {
+    console.error("Webhook: WEBHOOK_SECRET non configuré — appel rejeté");
+    return NextResponse.json({ error: "Configuration webhook manquante" }, { status: 500 });
   }
+  const receivedSecret = request.headers.get("x-cinetpay-secret");
+  if (receivedSecret !== webhookSecret) {
+    console.warn("Webhook: secret invalide reçu");
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
 
   const {
     cpm_trans_id,
@@ -135,11 +138,11 @@ export async function POST(request: NextRequest) {
       console.log("Payment confirmed for order:", order.reference);
     } catch (err) {
       console.error("process_successful_payment error:", err);
-      // Journaliser l'erreur
+      // Journaliser l'erreur de traitement (pas une erreur de signature)
       await supabase.from("payment_logs").insert({
         order_id:   order.id,
         store_id:   order.store_id,
-        event_type: "webhook_failed_signature",
+        event_type: "payment_processing_error",
         provider:   "cinetpay",
         error_message: String(err),
         success:    false,

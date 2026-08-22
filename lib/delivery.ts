@@ -113,14 +113,19 @@ export function calculateDeliveryFee(
     return { fee: regionZone?.fee ?? 5000, zoneName: regionZone?.name ?? "Régions" };
   }
 
-  // Chercher par correspondance exacte ou partielle dans les quartiers
+  // Chercher par correspondance dans les quartiers
+  // M-6: Correspondance partielle limitée à un minimum de 3 caractères pour éviter
+  // les faux positifs (ex: "a" qui matche "Almadies")
   for (const zone of SENEGAL_DELIVERY_ZONES) {
-    const matched = zone.districts.some(
-      (d) =>
-        cleanDistrict === d.toLowerCase() ||
-        cleanDistrict.includes(d.toLowerCase()) ||
-        d.toLowerCase().includes(cleanDistrict)
-    );
+    const matched = zone.districts.some((d) => {
+      const dl = d.toLowerCase();
+      // Correspondance exacte en priorité
+      if (cleanDistrict === dl) return true;
+      // Correspondance partielle : le quartier doit contenir ce qu'a tapé l'utilisateur
+      // (et non l'inverse) avec un minimum de 3 caractères pour éviter les faux positifs
+      if (cleanDistrict.length >= 3 && dl.includes(cleanDistrict)) return true;
+      return false;
+    });
     if (matched) {
       return { fee: zone.fee, zoneName: zone.name };
     }
@@ -129,3 +134,4 @@ export function calculateDeliveryFee(
   // Tarif par défaut pour Dakar
   return { fee: 2000, zoneName: "Dakar standard" };
 }
+

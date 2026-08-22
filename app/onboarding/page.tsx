@@ -2,21 +2,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ShoppingBag, Store, Phone, MapPin, Loader2, ArrowRight, CheckCircle } from "lucide-react";
+import { ShoppingBag, Store, Phone, Loader2, ArrowRight, CheckCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { cn, DAKAR_DISTRICTS } from "@/lib/utils";
-
-function slugify(text: string) {
-  return text
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9\s-]/g, "")
-    .trim()
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-")
-    .slice(0, 60);
-}
+import { cn, DAKAR_DISTRICTS, normalizePhone, isValidSenegalPhone, slugify } from "@/lib/utils";
+import { CreateStoreSchema } from "@/shared/schemas";
 
 const STEPS = [
   { id: 1, title: "Nom de la boutique", icon: Store },
@@ -52,6 +41,36 @@ export default function OnboardingPage() {
   const handleCreate = async () => {
     setIsLoading(true);
     setError(null);
+
+    // M-3: Validation stricte du téléphone WhatsApp
+    if (!isValidSenegalPhone(form.whatsapp_number)) {
+      setError("Veuillez saisir un numéro WhatsApp sénégalais valide (ex: 77 123 45 67).");
+      setIsLoading(false);
+      return;
+    }
+
+    const cleanPhone = normalizePhone(form.whatsapp_number);
+    const cleanInstagram = form.instagram_handle ? form.instagram_handle.replace(/^@/, "").trim() : null;
+
+    // M-3: Validation avec le schéma Zod
+    const validation = CreateStoreSchema.safeParse({
+      name: form.name.trim(),
+      slug: form.slug.trim(),
+      description: form.description?.trim() || undefined,
+      whatsapp_number: form.whatsapp_number.trim(),
+      city: form.city.trim() || "Dakar",
+      district: form.district?.trim() || undefined,
+      instagram_handle: cleanInstagram || undefined,
+      accepts_delivery: true,
+    });
+
+    if (!validation.success) {
+      const firstError = validation.error.errors[0]?.message || "Veuillez vérifier les informations saisies.";
+      setError(firstError);
+      setIsLoading(false);
+      return;
+    }
+
     const supabase = createClient();
 
     const { data: { user } } = await supabase.auth.getUser();
@@ -64,7 +83,7 @@ export default function OnboardingPage() {
     if (merchant) {
       merchantId = (merchant as { id: string }).id;
 
-      // ── Vérifier si une boutique existe déjà pour ce marchand ──────────────
+      // Vérifier si une boutique existe déjà pour ce marchand (règle 1 compte = 1 boutique)
       const { data: existingStore } = await supabase
         .from("stores").select("id").eq("merchant_id", merchantId).single();
 
@@ -74,14 +93,14 @@ export default function OnboardingPage() {
         return;
       }
     } else {
-      // Auto-créer le profil marchand si absent
+      // H-4: Auto-créer le profil marchand avec le numéro validé (pas de valeur fictive)
       const { data: newMerchant, error: mError } = await supabase
         .from("merchants")
         .insert({
           auth_user_id: user.id,
           full_name: user.user_metadata?.full_name ?? user.email?.split("@")[0] ?? "Marchand",
           email: user.email ?? "",
-          phone: form.whatsapp_number.replace(/\D/g, "") || "770000000",
+          phone: cleanPhone,
         } as never)
         .select("id")
         .single();
@@ -108,18 +127,24 @@ export default function OnboardingPage() {
 
     const { error: createError } = await supabase.from("stores").insert({
       merchant_id:      merchantId,
-      name:             form.name,
-      slug:             form.slug,
-      description:      form.description || null,
-      whatsapp_number:  form.whatsapp_number.replace(/\D/g, ""),
-      city:             form.city,
-      district:         form.district || null,
-      instagram_handle: form.instagram_handle || null,
+      name:             form.name.trim(),
+      slug:             form.slug.trim(),
+      description:      form.description?.trim() || null,
+      whatsapp_number:  cleanPhone,
+      city:             form.city.trim() || "Dakar",
+      district:         form.district?.trim() || null,
+      instagram_handle: cleanInstagram,
     } as never);
 
     if (createError) {
       console.error("Store creation error:", createError);
-      setError(createError.message);
+      // L-7: Message d'erreur clair si conflit de slug
+      if (createError.code === "23505" || createError.message?.includes("unique")) {
+        setError("Ce lien de boutique est déjà utilisé. Veuillez modifier le nom de votre boutique.");
+        setStep(1);
+      } else {
+        setError(createError.message || "Erreur lors de la création de la boutique.");
+      }
       setIsLoading(false);
       return;
     }

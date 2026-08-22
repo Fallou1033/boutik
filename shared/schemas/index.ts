@@ -5,14 +5,15 @@ import { z } from "zod";
 export const senegalPhoneSchema = z
   .string()
   .min(1, "Numéro requis")
+  // Normaliser : supprimer espaces, tirets, points, parenthèses
   .transform((val) => val.replace(/[\s\-\.\(\)]/g, ""))
+  // Valider strictement : format sénégalais uniquement
   .refine(
     (val) => {
       const digits = val.replace(/\D/g, "");
       return (
         (digits.length === 9 && /^(70|75|76|77|78|33)[0-9]{7}$/.test(digits)) ||
-        (digits.length === 12 && /^221(70|75|76|77|78|33)[0-9]{7}$/.test(digits)) ||
-        (digits.length >= 9 && digits.length <= 12)
+        (digits.length === 12 && /^221(70|75|76|77|78|33)[0-9]{7}$/.test(digits))
       );
     },
     "Numéro de téléphone sénégalais invalide (ex: 77 123 45 67)"
@@ -30,7 +31,7 @@ export const CreateProductSchema = z
     description: z.string().max(1000, "Description trop longue").optional(),
     price: z
       .number({ invalid_type_error: "Prix invalide" })
-      .positive("Le prix doit être positif")
+      .positive("Le prix doit être positif (> 0)")
       .multipleOf(1, "Prix en nombre entier (FCFA)"),
     compare_price: z
       .number()
@@ -89,11 +90,8 @@ export const CheckoutFormSchema = z.object({
     errorMap: () => ({ message: "Mode de livraison invalide" }),
   }),
   city: z.string().min(1).default("Dakar"),
-  district: z
-    .string()
-    .min(2, "Quartier requis")
-    .max(80)
-    .trim(),
+  // C-2: district est optionnel — la validation conditionnelle est faite par superRefine
+  district: z.string().max(80).trim().optional(),
   address_details: z.string().max(300).optional(),
   landmark: z.string().max(200).optional(),
 
@@ -105,6 +103,17 @@ export const CheckoutFormSchema = z.object({
 
   // Notes
   customer_notes: z.string().max(500).optional(),
+}).superRefine((data, ctx) => {
+  // Le quartier est obligatoire UNIQUEMENT pour la livraison à domicile
+  if (data.delivery_type === "home") {
+    if (!data.district || data.district.trim().length < 2) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Veuillez indiquer votre quartier ou ville pour la livraison à domicile",
+        path: ["district"],
+      });
+    }
+  }
 });
 
 export type CheckoutFormInput = z.infer<typeof CheckoutFormSchema>;

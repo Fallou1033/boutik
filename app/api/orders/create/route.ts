@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { calculateDeliveryFee } from "@/lib/delivery";
-import { normalizePhone } from "@/lib/utils";
+import { normalizePhone, isValidSenegalPhone } from "@/lib/utils";
 
 interface OrderItemInput {
   product_id: string;
@@ -57,6 +57,13 @@ export async function POST(request: NextRequest) {
     }
     if (!payment_method) {
       return NextResponse.json({ error: "Méthode de paiement manquante" }, { status: 400 });
+    }
+
+    if (!isValidSenegalPhone(customer.phone)) {
+      return NextResponse.json(
+        { error: "Numéro de téléphone sénégalais invalide (ex: 77 123 45 67)" },
+        { status: 400 }
+      );
     }
 
     const supabase = createAdminClient();
@@ -136,34 +143,56 @@ export async function POST(request: NextRequest) {
     const computedDeliveryFee = delivery?.delivery_type === "pickup" ? 0 : calculatedFee;
     const computedTotal = computedSubtotal + computedDeliveryFee;
 
-    // ── 1. Upsert customer ─────────────────────────────────────────────────
+    // ── 1. Trouver ou Créer le client (sans déclencher de conflit UPDATE RLS) ──
     const cleanCustomerPhone = normalizePhone(customer.phone);
     const cleanRecipientPhone = normalizePhone(delivery?.recipient_phone || customer.phone);
     const cleanRecipientName = delivery?.recipient_name || customer.full_name;
     const cleanDistrict = delivery?.district || "Dakar";
     const cleanCity = delivery?.city || "Dakar";
 
-    const { data: customerData, error: customerError } = await supabase
+    let customerId: string | null = null;
+
+    const { data: existingCustomer } = await supabase
       .from("customers")
-      .upsert(
-        {
+      .select("id")
+      .eq("store_id", store_id)
+      .eq("phone", cleanCustomerPhone)
+      .maybeSingle();
+
+    if (existingCustomer && (existingCustomer as unknown as { id: string }).id) {
+      customerId = (existingCustomer as unknown as { id: string }).id;
+    } else {
+      const { data: newCustomer, error: customerError } = await supabase
+        .from("customers")
+        .insert({
           store_id,
           full_name:          customer.full_name,
           phone:              cleanCustomerPhone,
           preferred_city:     cleanCity,
           preferred_district: cleanDistrict,
-        } as never,
-        { onConflict: "store_id,phone", ignoreDuplicates: false }
-      )
-      .select("id")
-      .single();
+        } as never)
+        .select("id")
+        .single();
 
-    if (customerError || !customerData) {
-      console.error("Customer upsert error:", customerError);
-      return NextResponse.json({ error: customerError?.message || "Erreur client" }, { status: 500 });
+      if (customerError || !newCustomer) {
+        // En cas de concurrence ou doublon, récupérer l'existant
+        const { data: fallbackCustomer } = await supabase
+          .from("customers")
+          .select("id")
+          .eq("store_id", store_id)
+          .eq("phone", cleanCustomerPhone)
+          .maybeSingle();
+
+        if (fallbackCustomer && (fallbackCustomer as unknown as { id: string }).id) {
+          customerId = (fallbackCustomer as unknown as { id: string }).id;
+        } else {
+          console.error("Customer creation error:", customerError);
+          return NextResponse.json({ error: customerError?.message || "Erreur client" }, { status: 500 });
+        }
+      } else {
+        customerId = (newCustomer as unknown as { id: string }).id;
+      }
     }
-
-    const customerId = (customerData as unknown as { id: string }).id;
 
     // ── 2. Créer la livraison ──────────────────────────────────────────────
     const { data: deliveryData, error: deliveryError } = await supabase

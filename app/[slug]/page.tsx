@@ -4,20 +4,22 @@ import type { Metadata } from "next";
 import StorefrontPage from "@/components/storefront/StorefrontPage";
 import type { Store, Product } from "@/types/database.types";
 
+// H-6/H-7: Next.js 15 — params et searchParams sont des Promises
 interface Props {
-  params: { slug: string };
-  searchParams: { category?: string; q?: string };
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<{ category?: string; q?: string }>;
 }
 
 // ISR: revalidation toutes les 60 secondes
 export const revalidate = 60;
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { slug } = await params;
   const supabase = await createClient();
   const { data: store } = await supabase
     .from("stores")
     .select("name, description, logo_url")
-    .eq("slug", params.slug)
+    .eq("slug", slug)
     .eq("is_active", true)
     .single();
 
@@ -37,13 +39,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function Page({ params, searchParams }: Props) {
+  const { slug } = await params;
+  const { category } = await searchParams;
   const supabase = await createClient();
 
   // Récupération boutique
   const { data: storeRaw } = await supabase
     .from("stores")
     .select("*")
-    .eq("slug", params.slug)
+    .eq("slug", slug)
     .eq("is_active", true)
     .single();
 
@@ -51,8 +55,9 @@ export default async function Page({ params, searchParams }: Props) {
 
   const store = storeRaw as unknown as Store;
 
-  // Récupération produits
-  let query = supabase
+  // L-4: Une seule requête pour tous les produits (filtrage + catégories)
+  // On récupère tous les produits actifs, puis on filtre côté serveur si nécessaire.
+  const { data: allProductsRaw } = await supabase
     .from("products")
     .select("*")
     .eq("store_id", store.id)
@@ -60,32 +65,30 @@ export default async function Page({ params, searchParams }: Props) {
     .order("is_featured", { ascending: false })
     .order("display_order", { ascending: true });
 
-  if (searchParams.category) {
-    query = query.eq("category", searchParams.category);
-  }
+  const allProducts = (allProductsRaw ?? []) as unknown as Product[];
 
-  const { data: productsRaw } = await query;
-  const products = (productsRaw ?? []) as unknown as Product[];
-
-  // Catégories uniques
-  const { data: allProductsRaw } = await supabase
-    .from("products")
-    .select("category")
-    .eq("store_id", store.id)
-    .eq("is_active", true)
-    .not("category", "is", null);
-
-  const allProds = (allProductsRaw ?? []) as Array<{ category: string | null }>;
+  // Extraire les catégories uniques depuis les résultats
   const categories = [
-    ...new Set(allProds.map((p) => p.category).filter(Boolean)),
+    ...new Set(
+      allProducts
+        .map((p) => (p as unknown as { category: string | null }).category)
+        .filter(Boolean)
+    ),
   ] as string[];
+
+  // Filtrer par catégorie si demandé
+  const products = category
+    ? allProducts.filter(
+        (p) => (p as unknown as { category: string | null }).category === category
+      )
+    : allProducts;
 
   return (
     <StorefrontPage
       store={store}
       products={products}
       categories={categories}
-      activeCategory={searchParams.category}
+      activeCategory={category}
     />
   );
 }

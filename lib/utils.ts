@@ -70,21 +70,27 @@ export function slugify(text: string): string {
 
 /**
  * normalizePhone — Normalise un numéro de téléphone sénégalais au format international.
+ * Retourne "+221XXXXXXXXX" pour les numéros valides, ou une chaîne vide si invalide.
  * @example normalizePhone("771234567") → "+221771234567"
+ * @example normalizePhone("00221771234567") → "+221771234567"
  */
 export function normalizePhone(phone: string): string {
   if (!phone) return "";
   let digits = phone.replace(/\D/g, "");
+  // Retirer le préfixe 00221 → 221
   if (digits.startsWith("00221")) {
-    digits = digits.slice(2);
+    digits = digits.slice(2); // "00221XXXXXXXXX" → "221XXXXXXXXX" (12 chiffres)
   }
+  // Format +221XXXXXXXXX ou 221XXXXXXXXX
   if (digits.startsWith("221") && digits.length === 12) {
     return `+${digits}`;
   }
+  // Format XXXXXXXXX (9 chiffres)
   if (digits.length === 9) {
     return `+221${digits}`;
   }
-  return digits.startsWith("+") ? digits : `+221${digits}`;
+  // Numéro non reconnu — ne pas préfixer aveuglément
+  return "";
 }
 
 /**
@@ -125,24 +131,32 @@ export function getImageUrl(
   ) {
     return pathOrUrl;
   }
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!supabaseUrl) {
+    if (process.env.NODE_ENV === "development") {
+      console.warn("[getImageUrl] NEXT_PUBLIC_SUPABASE_URL is not defined. Image will not load.");
+    }
+    return "";
+  }
   const cleanPath = pathOrUrl.startsWith("product-images/")
     ? pathOrUrl
     : `product-images/${pathOrUrl}`;
   return `${supabaseUrl}/storage/v1/object/public/${cleanPath}`;
 }
 
+
 /**
  * isValidSenegalPhone — Valide un numéro de téléphone sénégalais.
+ * Accepte uniquement les formats stricts : 9 chiffres ou +221/00221 + 9 chiffres.
  */
 export function isValidSenegalPhone(phone: string): boolean {
   if (!phone) return false;
   const digits = phone.replace(/\D/g, "");
-  return (
-    (digits.length === 9 && /^(70|75|76|77|78|33)[0-9]{7}$/.test(digits)) ||
-    (digits.length === 12 && /^221(70|75|76|77|78|33)[0-9]{7}$/.test(digits)) ||
-    (digits.length >= 9 && digits.length <= 12)
-  );
+  // 9 chiffres commençant par un opérateur sénégalais valide
+  if (digits.length === 9 && /^(70|75|76|77|78|33)[0-9]{7}$/.test(digits)) return true;
+  // Avec préfixe 221 (12 chiffres)
+  if (digits.length === 12 && /^221(70|75|76|77|78|33)[0-9]{7}$/.test(digits)) return true;
+  return false;
 }
 
 /**

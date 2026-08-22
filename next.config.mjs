@@ -4,6 +4,17 @@ const supabaseHostname = process.env.NEXT_PUBLIC_SUPABASE_URL
   ? new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).hostname
   : "placeholder.supabase.co";
 
+const cspHeader = `
+  default-src 'self';
+  script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.supabase.co https://*.cinetpay.com;
+  style-src 'self' 'unsafe-inline';
+  img-src 'self' data: blob: https://${supabaseHostname} https://*.supabase.co https://*.cinetpay.com;
+  font-src 'self' data:;
+  connect-src 'self' https://${supabaseHostname} https://*.supabase.co https://*.cinetpay.com https://api-checkout.cinetpay.com;
+  frame-ancestors 'self';
+  upgrade-insecure-requests;
+`.replace(/\s{2,}/g, " ").trim();
+
 const securityHeaders = [
   { key: "X-DNS-Prefetch-Control", value: "on" },
   {
@@ -14,6 +25,7 @@ const securityHeaders = [
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+  { key: "Content-Security-Policy", value: cspHeader },
 ];
 
 const nextConfig = {

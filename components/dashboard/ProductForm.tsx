@@ -18,8 +18,9 @@ import { cn, formatXOF } from "@/lib/utils";
 const ProductSchema = z.object({
   name:          z.string().min(1, "Nom requis").max(120),
   description:   z.string().max(1000).optional(),
-  price:         z.coerce.number().min(0, "Prix requis"),
-  compare_price: z.coerce.number().min(0).optional().nullable(),
+  // M-4: prix minimum 1 pour cohérence avec CreateProductSchema (pas de produit gratuit)
+  price:         z.coerce.number().min(1, "Le prix doit être supérieur à 0"),
+  compare_price: z.coerce.number().min(1).optional().nullable(),
   category:      z.string().max(60).optional(),
   track_stock:   z.boolean().default(false),
   stock_quantity: z.coerce.number().int().min(0).optional().nullable(),
@@ -109,6 +110,25 @@ export default function ProductForm({ storeId, product, mode }: Props) {
   };
 
   const removeImage = async (url: string, index: number) => {
+    // M-5: Supprimer le fichier du bucket Supabase Storage pour éviter les orphelins
+    try {
+      const supabase = createClient();
+      // Extraire le chemin relatif depuis l'URL publique
+      // Ex: https://xxx.supabase.co/storage/v1/object/public/product-images/storeId/file.jpg
+      //   → product-images/storeId/file.jpg
+      const match = url.match(/\/storage\/v1\/object\/public\/(.+)/);
+      if (match) {
+        const storagePath = match[1]; // ex: "product-images/uuid/file.jpg"
+        const bucket = storagePath.startsWith("product-images/")
+          ? "product-images"
+          : storagePath.split("/")[0];
+        const filePath = storagePath.replace(`${bucket}/`, "");
+        await supabase.storage.from(bucket).remove([filePath]);
+      }
+    } catch (err) {
+      console.warn("Impossible de supprimer l'image du stockage:", err);
+      // Ne pas bloquer la suppression de l'UI si le delete Storage échoue
+    }
     setImages((prev) => prev.filter((_, i) => i !== index));
   };
 

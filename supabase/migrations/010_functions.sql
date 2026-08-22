@@ -3,6 +3,7 @@
 -- ============================================================
 
 -- ── Génération de référence commande ───────────────────────────────────────
+-- H-2: Sérialisation atomique par boutique avec advisory lock + fallback anti-collision
 
 CREATE OR REPLACE FUNCTION public.generate_order_reference(p_store_id UUID)
 RETURNS TEXT
@@ -14,30 +15,41 @@ DECLARE
   v_date   TEXT := TO_CHAR(NOW() AT TIME ZONE 'Africa/Dakar', 'YYYYMMDD');
   v_count  INTEGER;
   v_ref    TEXT;
+  v_rand   TEXT;
 BEGIN
+  -- Verrou de transaction par boutique + date pour éviter les collisions concurrentes
+  PERFORM pg_advisory_xact_lock(hashtext(p_store_id::TEXT || v_date));
+
   SELECT COUNT(*) + 1 INTO v_count
   FROM public.orders
   WHERE store_id = p_store_id
     AND DATE(created_at AT TIME ZONE 'Africa/Dakar') = CURRENT_DATE;
 
   v_ref := 'CMD-' || v_date || '-' || LPAD(v_count::TEXT, 4, '0');
+
+  -- Si la référence existe déjà (concurrence extrême), ajouter un suffixe aléatoire
+  WHILE EXISTS (SELECT 1 FROM public.orders WHERE reference = v_ref) LOOP
+    v_rand := UPPER(SUBSTRING(MD5(RANDOM()::TEXT) FROM 1 FOR 3));
+    v_count := v_count + 1;
+    v_ref := 'CMD-' || v_date || '-' || LPAD(v_count::TEXT, 4, '0') || '-' || v_rand;
+  END LOOP;
+
   RETURN v_ref;
 END;
 $$;
 
 COMMENT ON FUNCTION public.generate_order_reference IS
-  'Génère CMD-YYYYMMDD-XXXX basé sur le fuseau horaire Dakar (GMT+0)';
+  'Génère CMD-YYYYMMDD-XXXX basé sur le fuseau horaire Dakar (GMT+0) avec protection anti-collision';
 
 -- ── Traitement atomique du paiement confirmé ───────────────────────────────
--- CRITIQUE: Appelé depuis Edge Function payment-webhook après vérif HMAC
--- Utilise SELECT FOR UPDATE pour éviter les race conditions
+-- C-3 & H-3: SECURITY DEFINER avec SET search_path = public et gestion idempotente
 
 CREATE OR REPLACE FUNCTION public.process_successful_payment(
   p_order_reference       TEXT,
   p_payment_provider_ref  TEXT,
   p_amount                NUMERIC,
   p_idempotency_key       TEXT,
-  p_raw_payload           JSONB
+  p_raw_payload           JSONB DEFAULT NULL
 )
 RETURNS VOID
 LANGUAGE plpgsql
@@ -48,18 +60,26 @@ DECLARE
   v_order_id  UUID;
   v_store_id  UUID;
   v_item      RECORD;
-  v_updated   INTEGER;
+  v_order     RECORD;
 BEGIN
-  -- 1. Verrouillage pessimiste (évite race conditions avec webhooks simultanés)
-  SELECT id, store_id INTO v_order_id, v_store_id
+  -- 1. Verrouillage pessimiste de la commande
+  SELECT id, store_id, order_status, payment_status, total
+  INTO v_order
   FROM public.orders
   WHERE reference = p_order_reference
-    AND order_status = 'awaiting_payment'
-  FOR UPDATE NOWAIT;  -- Échoue immédiatement si déjà verrouillé
+  FOR UPDATE;
 
   IF NOT FOUND THEN
-    RAISE EXCEPTION 'ORDER_NOT_FOUND_OR_INVALID_STATE: %', p_order_reference;
+    RAISE EXCEPTION 'ORDER_NOT_FOUND: %', p_order_reference;
   END IF;
+
+  -- Idempotency: si déjà payée, ne rien faire
+  IF v_order.payment_status = 'paid' THEN
+    RETURN;
+  END IF;
+
+  v_order_id := v_order.id;
+  v_store_id := v_order.store_id;
 
   -- 2. Mise à jour de la commande
   UPDATE public.orders SET
@@ -68,7 +88,8 @@ BEGIN
     payment_ref             = p_payment_provider_ref,
     paid_at                 = NOW(),
     webhook_received_at     = NOW(),
-    webhook_idempotency_key = p_idempotency_key
+    webhook_idempotency_key = p_idempotency_key,
+    updated_at              = NOW()
   WHERE id = v_order_id;
 
   -- 3. Décrémentation stock atomique (uniquement si track_stock = TRUE)
@@ -84,9 +105,7 @@ BEGIN
     SET stock_quantity = GREATEST(0, stock_quantity - v_item.quantity)
     WHERE id = v_item.product_id;
 
-    GET DIAGNOSTICS v_updated = ROW_COUNT;
-
-    -- Log si stock insuffisant (edge case: stock épuisé entre création et paiement)
+    -- Log si stock insuffisant
     IF v_item.stock_quantity < v_item.quantity THEN
       INSERT INTO public.payment_logs (
         order_id, store_id, event_type, provider,
@@ -96,12 +115,12 @@ BEGIN
         p_raw_payload,
         'Stock insuffisant pour produit ' || v_item.product_id::TEXT ||
         ' (demandé: ' || v_item.quantity || ', disponible: ' || v_item.stock_quantity || ')',
-        TRUE  -- La commande est quand même payée — vendeur gère manuellement
+        TRUE
       );
     END IF;
   END LOOP;
 
-  -- 4. Log du succès (toujours en dernier)
+  -- 4. Log du succès
   INSERT INTO public.payment_logs (
     order_id, store_id, event_type, provider,
     provider_ref, amount, currency, raw_payload, success
@@ -110,12 +129,11 @@ BEGIN
     p_payment_provider_ref, p_amount, 'XOF', p_raw_payload, TRUE
   );
 
-  -- COMMIT implicite si pas d'exception
 END;
 $$;
 
 COMMENT ON FUNCTION public.process_successful_payment IS
-  'Transaction atomique: update order paid + décrémentation stock. Appelé depuis Edge Function après vérif HMAC.';
+  'Transaction atomique: update order paid + décrémentation stock. Idempotent et sécurisé.';
 
 -- ── Vérification transition commande valide ────────────────────────────────
 

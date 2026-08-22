@@ -1,6 +1,5 @@
 -- ══════════════════════════════════════════════════════════════════════════════
--- Migration 011 — Paiement Mobile Money (Phase 5)
--- À exécuter dans Supabase SQL Editor
+-- Migration 015 — Paiement Mobile Money & RLS (Phase 5)
 -- ══════════════════════════════════════════════════════════════════════════════
 
 -- 1. Ajouter webhook_idempotency_key à la table orders
@@ -21,7 +20,7 @@ ALTER TABLE public.payment_logs
   ADD COLUMN IF NOT EXISTS raw_payload JSONB,
   ADD COLUMN IF NOT EXISTS error_message TEXT;
 
--- 5. Créer/remplacer la fonction process_successful_payment
+-- 5. Créer/remplacer la fonction process_successful_payment (avec search_path)
 CREATE OR REPLACE FUNCTION public.process_successful_payment(
   p_order_reference      TEXT,
   p_payment_provider_ref TEXT,
@@ -31,6 +30,7 @@ CREATE OR REPLACE FUNCTION public.process_successful_payment(
 ) RETURNS VOID
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path = public
 AS $$
 DECLARE
   v_order_id   UUID;

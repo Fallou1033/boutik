@@ -11,6 +11,14 @@ import type { Database } from "@/types/database.types";
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request: { headers: request.headers } });
 
+  const { pathname } = request.nextUrl;
+
+  // Court-circuit pour les routes API — pas besoin de vérifier la session
+  // Évite un roundtrip Supabase Auth sur chaque webhook/API call
+  if (pathname.startsWith("/api/")) {
+    return response;
+  }
+
   const supabase = createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -37,8 +45,6 @@ export async function middleware(request: NextRequest) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-
-  const { pathname } = request.nextUrl;
 
   // Routes protégées
   const isProtected =

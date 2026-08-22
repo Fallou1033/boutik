@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Image from "next/image";
 import {
   ShoppingBag, Shield, Loader2, ExternalLink,
@@ -52,7 +51,6 @@ interface Order {
 interface Props { order: Order }
 
 export default function PaymentPage({ order }: Props) {
-  const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -76,14 +74,20 @@ export default function PaymentPage({ order }: Props) {
       }
 
       // Redirection vers CinetPay
+      // H-5: Réinitialiser isLoading car la navigation peut prendre du temps
       if (data.payment_url) {
         window.location.href = data.payment_url;
+        // Fallback si la redirection est bloquée (popup blocker, réseau lent…)
+        setTimeout(() => setIsLoading(false), 5000);
+      } else {
+        setIsLoading(false);
       }
     } catch {
       setError("Impossible de contacter la passerelle de paiement. Vérifiez votre connexion.");
       setIsLoading(false);
     }
   };
+
 
   const isPaid = order.payment_status === "paid";
   const isCancelled = order.order_status === "cancelled";
