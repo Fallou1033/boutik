@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { calculateDeliveryFee } from "@/lib/delivery";
 import { normalizePhone } from "@/lib/utils";
 
@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Méthode de paiement manquante" }, { status: 400 });
     }
 
-    const supabase = await createClient();
+    const supabase = createAdminClient();
 
     // ── FIX #1 : Recalcul des prix côté serveur ────────────────────────────
     // On ne fait JAMAIS confiance aux prix envoyés par le client.
