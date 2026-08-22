@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { calculateDeliveryFee } from "@/lib/delivery";
+import { normalizePhone } from "@/lib/utils";
 
 interface OrderItemInput {
   product_id: string;
@@ -136,15 +137,21 @@ export async function POST(request: NextRequest) {
     const computedTotal = computedSubtotal + computedDeliveryFee;
 
     // ── 1. Upsert customer ─────────────────────────────────────────────────
+    const cleanCustomerPhone = normalizePhone(customer.phone);
+    const cleanRecipientPhone = normalizePhone(delivery?.recipient_phone || customer.phone);
+    const cleanRecipientName = delivery?.recipient_name || customer.full_name;
+    const cleanDistrict = delivery?.district || "Dakar";
+    const cleanCity = delivery?.city || "Dakar";
+
     const { data: customerData, error: customerError } = await supabase
       .from("customers")
       .upsert(
         {
           store_id,
           full_name:          customer.full_name,
-          phone:              customer.phone,
-          preferred_city:     delivery.city,
-          preferred_district: delivery.district,
+          phone:              cleanCustomerPhone,
+          preferred_city:     cleanCity,
+          preferred_district: cleanDistrict,
         } as never,
         { onConflict: "store_id,phone", ignoreDuplicates: false }
       )
@@ -153,7 +160,7 @@ export async function POST(request: NextRequest) {
 
     if (customerError || !customerData) {
       console.error("Customer upsert error:", customerError);
-      return NextResponse.json({ error: "Erreur client" }, { status: 500 });
+      return NextResponse.json({ error: customerError?.message || "Erreur client" }, { status: 500 });
     }
 
     const customerId = (customerData as unknown as { id: string }).id;
@@ -162,13 +169,13 @@ export async function POST(request: NextRequest) {
     const { data: deliveryData, error: deliveryError } = await supabase
       .from("deliveries")
       .insert({
-        recipient_name:  delivery.recipient_name,
-        recipient_phone: delivery.recipient_phone,
-        city:            delivery.city ?? "Dakar",
-        district:        delivery.district,
-        address_details: delivery.address_details,
-        landmark:        delivery.landmark,
-        delivery_type:   delivery.delivery_type,
+        recipient_name:  cleanRecipientName,
+        recipient_phone: cleanRecipientPhone,
+        city:            cleanCity,
+        district:        cleanDistrict,
+        address_details: delivery?.address_details || null,
+        landmark:        delivery?.landmark || null,
+        delivery_type:   delivery?.delivery_type || "home",
         delivery_fee:    computedDeliveryFee, // ← frais calculés serveur
       } as never)
       .select("id")
@@ -176,7 +183,7 @@ export async function POST(request: NextRequest) {
 
     if (deliveryError || !deliveryData) {
       console.error("Delivery insert error:", deliveryError);
-      return NextResponse.json({ error: "Erreur livraison" }, { status: 500 });
+      return NextResponse.json({ error: deliveryError?.message || "Erreur livraison" }, { status: 500 });
     }
 
     const deliveryId = (deliveryData as unknown as { id: string }).id;

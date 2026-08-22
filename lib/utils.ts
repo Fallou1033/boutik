@@ -73,10 +73,18 @@ export function slugify(text: string): string {
  * @example normalizePhone("771234567") → "+221771234567"
  */
 export function normalizePhone(phone: string): string {
-  const digits = phone.replace(/\D/g, "");
-  if (digits.startsWith("221")) return `+${digits}`;
-  if (digits.startsWith("+221")) return phone.trim();
-  return `+221${digits}`;
+  if (!phone) return "";
+  let digits = phone.replace(/\D/g, "");
+  if (digits.startsWith("00221")) {
+    digits = digits.slice(2);
+  }
+  if (digits.startsWith("221") && digits.length === 12) {
+    return `+${digits}`;
+  }
+  if (digits.length === 9) {
+    return `+221${digits}`;
+  }
+  return digits.startsWith("+") ? digits : `+221${digits}`;
 }
 
 /**
