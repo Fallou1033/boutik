@@ -1,4 +1,4 @@
-﻿import { formatXOF } from "./utils";
+import { formatXOF } from "./utils";
 
 export interface DeliveryZone {
   id: string;
@@ -12,8 +12,8 @@ export const SENEGAL_DELIVERY_ZONES: DeliveryZone[] = [
   {
     id: "zone-1",
     name: "Dakar Centre & Plateau",
-    fee: 1500,
-    description: "Plateau, Médina, Fann, Point E, Mermoz, Sacré-Cœur, Amitié...",
+    fee: 2000,
+    description: "Plateau, Médina, Fann, Point E, Mermoz, Sacré-Cœur, Amitié, Fass...",
     districts: [
       "Plateau", "Dakar-Plateau", "Médina", "Fann", "Point E", "Mermoz",
       "Sacré-Cœur", "Amitié", "Sicap Amitié", "Fass", "Colobane",
@@ -23,56 +23,58 @@ export const SENEGAL_DELIVERY_ZONES: DeliveryZone[] = [
   {
     id: "zone-2",
     name: "Grand Dakar, VDN & Maristes",
-    fee: 1500,
+    fee: 2000,
     description: "Grand-Yoff, HLM, Liberté (1 à 6), Khar Yalla, Dieuppeul, Maristes...",
     districts: [
       "Grand-Yoff", "HLM", "Liberté", "Khar Yalla", "Dieuppeul",
       "Derklé", "Castors", "Cité Keur Gorgui", "Sicap", "VDN",
-      "Hann Maristes", "Maristes", "Patte d'Oie", "Zone de Captage"
+      "Hann Maristes", "Maristes", "Patte d'Oie", "Zone de Captage", "Scat Urbam"
     ],
   },
   {
     id: "zone-3",
     name: "Almadies, Ouakam & Yoff",
-    fee: 2000,
+    fee: 2500,
     description: "Almadies, Ngor, Ouakam, Yoff, Mamelles, Virage, Foires...",
     districts: [
       "Almadies", "Ngor", "Ouakam", "Yoff", "Mamelles", "Virage",
-      "Nord Foire", "Ouest Foire", "Sud Foire", "Cité Mixta"
+      "Nord Foire", "Ouest Foire", "Sud Foire", "Cité Mixta", "Cité Keur Damel"
     ],
   },
   {
     id: "zone-4",
     name: "Parcelles Assainies & Banlieue Proche",
-    fee: 2000,
+    fee: 2500,
     description: "Parcelles Assainies (Unité 1 à 26), Cambérène, Golf Sud, Guédiawaye, Pikine...",
     districts: [
-      "Parcelles Assainies", "Cambérène", "Golf Sud", "Guédiawaye", "Pikine", "Sam Notaire"
+      "Parcelles Assainies", "Cambérène", "Golf Sud", "Guédiawaye", "Pikine", "Sam Notaire",
+      "Cité Fadia", "Cité Aliou Sow", "Hamo", "Golf"
     ],
   },
   {
     id: "zone-5",
     name: "Banlieue Élargie & Keur Massar",
-    fee: 2500,
-    description: "Keur Massar, Thiaroye, Yeumbeul, Malika, Mbao, Diamaguène...",
+    fee: 4000,
+    description: "Keur Massar, Mbao, Zac Mbao, Thiaroye, Yeumbeul, Malika, Diamaguène...",
     districts: [
-      "Keur Massar", "Thiaroye", "Yeumbeul", "Malika", "Mbao", "Diamaguène", "Tivaouane Peulh"
+      "Keur Massar", "Zac Mbao", "ZAC Mbao", "Mbao", "Thiaroye", "Yeumbeul", "Malika",
+      "Diamaguène", "Tivaouane Peulh", "Jaxaay", "Kounoune"
     ],
   },
   {
     id: "zone-6",
     name: "Rufisque, Diamniadio & Périphérie",
-    fee: 3000,
+    fee: 4500,
     description: "Rufisque, Bargny, Diamniadio, Sébikotane, Sangalkam, Lac Rose...",
     districts: [
-      "Rufisque", "Bargny", "Diamniadio", "Sébikotane", "Sangalkam", "Lac Rose", "Niaga"
+      "Rufisque", "Bargny", "Diamniadio", "Sébikotane", "Sangalkam", "Lac Rose", "Niaga", "Sendou"
     ],
   },
   {
     id: "zone-regions",
     name: "Régions du Sénégal (Transporteur / GP)",
-    fee: 3500,
-    description: "Thiès, Mbour, Saint-Louis, Touba, Kaolack, Ziguinchor...",
+    fee: 5000,
+    description: "Thiès, Mbour, Saly, Saint-Louis, Touba, Kaolack, Ziguinchor...",
     districts: [
       "Thiès", "Mbour", "Saly", "Saint-Louis", "Touba", "Kaolack",
       "Ziguinchor", "Fatick", "Louga", "Diourbel", "Kolda", "Tambacounda", "Matam", "Kédougou"
@@ -99,7 +101,7 @@ export function calculateDeliveryFee(
   city?: string | null
 ): { fee: number; zoneName: string } {
   if (!district && !city) {
-    return { fee: 1500, zoneName: "Dakar standard" };
+    return { fee: 2000, zoneName: "Dakar standard" };
   }
 
   const cleanDistrict = (district || "").trim().toLowerCase();
@@ -108,7 +110,7 @@ export function calculateDeliveryFee(
   // Si la ville n'est pas Dakar
   if (cleanCity && cleanCity !== "dakar") {
     const regionZone = SENEGAL_DELIVERY_ZONES.find((z) => z.id === "zone-regions");
-    return { fee: regionZone?.fee ?? 3500, zoneName: regionZone?.name ?? "Régions" };
+    return { fee: regionZone?.fee ?? 5000, zoneName: regionZone?.name ?? "Régions" };
   }
 
   // Chercher par correspondance exacte ou partielle dans les quartiers
@@ -125,5 +127,5 @@ export function calculateDeliveryFee(
   }
 
   // Tarif par défaut pour Dakar
-  return { fee: 1500, zoneName: "Dakar standard" };
+  return { fee: 2000, zoneName: "Dakar standard" };
 }
