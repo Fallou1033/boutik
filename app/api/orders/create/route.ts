@@ -276,10 +276,13 @@ export async function POST(request: NextRequest) {
       { success: true, reference: order.reference, order_id: order.id },
       { status: 201 }
     );
-  } catch (error) {
-    console.error("Unexpected error:", error);
-    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
+  } catch (error: unknown) {
+    console.error("Unexpected error in order creation:", error);
+    const errorMessage =
+      error instanceof Error ? error.message : "Erreur inattendue lors de la création de la commande";
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
+
 
 

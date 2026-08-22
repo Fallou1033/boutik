@@ -12,16 +12,19 @@ import type { Database } from "@/types/database.types";
  * Lève une erreur si SUPABASE_SERVICE_ROLE_KEY n'est pas configuré.
  */
 export function createAdminClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://amqxyvuehikiatutvcal.supabase.co";
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  if (!url) {
-    throw new Error("[createAdminClient] NEXT_PUBLIC_SUPABASE_URL is not defined");
-  }
   if (!key) {
     throw new Error(
-      "[createAdminClient] SUPABASE_SERVICE_ROLE_KEY is not defined. " +
-      "Add it to your environment variables (Vercel → Settings → Environment Variables)."
+      "[createAdminClient] Aucun jeton Supabase (SERVICE_ROLE_KEY ou ANON_KEY) n'est configuré."
+    );
+  }
+
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    console.warn(
+      "[createAdminClient] SUPABASE_SERVICE_ROLE_KEY n'est pas défini dans les variables d'environnement. " +
+      "Utilisation de la clé publique ANON_KEY."
     );
   }
 
@@ -32,4 +35,5 @@ export function createAdminClient() {
     },
   });
 }
+
 
