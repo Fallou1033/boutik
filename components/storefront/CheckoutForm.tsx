@@ -130,6 +130,18 @@ export default function CheckoutForm({ store, onSuccess }: Props) {
     }
   };
 
+  const onInvalid = (fieldErrors: typeof errors) => {
+    if (fieldErrors.phone) {
+      setFormError(fieldErrors.phone.message || "Numéro de téléphone invalide (ex: 77 123 45 67)");
+    } else if (fieldErrors.full_name) {
+      setFormError(fieldErrors.full_name.message || "Veuillez indiquer votre nom complet.");
+    } else if (fieldErrors.district) {
+      setFormError(fieldErrors.district.message || "Veuillez sélectionner ou taper votre quartier.");
+    } else {
+      setFormError("Veuillez vérifier les champs obligatoires du formulaire.");
+    }
+  };
+
   // Confirmation
   if (orderDone) {
     return (
@@ -160,12 +172,7 @@ export default function CheckoutForm({ store, onSuccess }: Props) {
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="p-4 space-y-6">
-      {formError && (
-        <div className="p-3 bg-red-50 text-red-700 border border-red-200 rounded-xl text-sm font-medium">
-          {formError}
-        </div>
-      )}
+    <form onSubmit={handleSubmit(onSubmit, onInvalid)} className="p-4 space-y-6">
 
       {/* Résumé commande */}
       <div className="card card-body bg-surface-subtle">
@@ -362,6 +369,14 @@ export default function CheckoutForm({ store, onSuccess }: Props) {
           placeholder="Taille, couleur, instructions spéciales..."
         />
       </div>
+
+      {/* Erreur de formulaire */}
+      {formError && (
+        <div className="p-3.5 bg-red-50 text-red-700 border border-red-200 rounded-xl text-sm font-medium animate-shake flex items-start gap-2">
+          <span className="text-base leading-none">⚠️</span>
+          <span className="flex-1">{formError}</span>
+        </div>
+      )}
 
       {/* Submit */}
       <button

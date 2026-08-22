@@ -128,9 +128,13 @@ export function getImageUrl(
  * isValidSenegalPhone — Valide un numéro de téléphone sénégalais.
  */
 export function isValidSenegalPhone(phone: string): boolean {
+  if (!phone) return false;
   const digits = phone.replace(/\D/g, "");
-  // Accepte: 9 chiffres, 221XXXXXXXXX, ou +221XXXXXXXXX
-  return /^(\+?221)?[0-9]{9}$/.test(phone) && digits.length >= 9;
+  return (
+    (digits.length === 9 && /^(70|75|76|77|78|33)[0-9]{7}$/.test(digits)) ||
+    (digits.length === 12 && /^221(70|75|76|77|78|33)[0-9]{7}$/.test(digits)) ||
+    (digits.length >= 9 && digits.length <= 12)
+  );
 }
 
 /**

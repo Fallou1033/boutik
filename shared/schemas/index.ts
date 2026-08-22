@@ -5,9 +5,17 @@ import { z } from "zod";
 export const senegalPhoneSchema = z
   .string()
   .min(1, "Numéro requis")
-  .regex(
-    /^(\+221|00221)?[0-9]{9}$/,
-    "Numéro de téléphone sénégalais invalide (ex: 771234567)"
+  .transform((val) => val.replace(/[\s\-\.\(\)]/g, ""))
+  .refine(
+    (val) => {
+      const digits = val.replace(/\D/g, "");
+      return (
+        (digits.length === 9 && /^(70|75|76|77|78|33)[0-9]{7}$/.test(digits)) ||
+        (digits.length === 12 && /^221(70|75|76|77|78|33)[0-9]{7}$/.test(digits)) ||
+        (digits.length >= 9 && digits.length <= 12)
+      );
+    },
+    "Numéro de téléphone sénégalais invalide (ex: 77 123 45 67)"
   );
 
 // ── Schéma: Création Produit ────────────────────────────────────────────────
