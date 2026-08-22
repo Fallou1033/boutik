@@ -11,6 +11,7 @@ import { formatXOF, cn } from "@/lib/utils";
 import { generateWhatsAppDeepLink as genWA } from "@/lib/whatsapp";
 import { useCart } from "@/hooks/useCart";
 import { calculateDeliveryFee, ALL_DISTRICTS_WITH_FEE } from "@/lib/delivery";
+import { PaymentLogo } from "@/components/icons/PaymentLogos";
 
 // Use the inferred output type (after Zod transforms/defaults)
 type CheckoutFormInput = z.output<typeof CheckoutFormSchema>;
@@ -21,10 +22,10 @@ interface Props {
 }
 
 const PAYMENT_METHODS = [
-  { value: "wave",             label: "Wave",             emoji: "💙", desc: "Paiement instantané" },
-  { value: "orange_money",     label: "Orange Money",     emoji: "🟠", desc: "Disponible 24h/24" },
-  { value: "free_money",       label: "Free Money",       emoji: "🟢", desc: "Aucun frais" },
-  { value: "cash_on_delivery", label: "À la livraison",   emoji: "💵", desc: "Paiement cash" },
+  { value: "wave",             label: "Wave",             desc: "Paiement instantané" },
+  { value: "orange_money",     label: "Orange Money",     desc: "Disponible 24h/24" },
+  { value: "free_money",       label: "Free Money",       desc: "Aucun frais" },
+  { value: "cash_on_delivery", label: "À la livraison",   desc: "Paiement cash" },
 ] as const;
 
 export default function CheckoutForm({ store, onSuccess }: Props) {
@@ -341,9 +342,11 @@ export default function CheckoutForm({ store, onSuccess }: Props) {
                 value={pm.value}
                 className="sr-only"
               />
-              <span className="text-lg">{pm.emoji}</span>
-              <span className="text-sm font-medium text-text mt-1">{pm.label}</span>
-              <span className="text-2xs text-text-muted">{pm.desc}</span>
+              <div className="mb-1.5">
+                <PaymentLogo method={pm.value} className="w-8 h-8 rounded-lg shadow-sm" />
+              </div>
+              <span className="text-sm font-semibold text-text">{pm.label}</span>
+              <span className="text-2xs text-text-muted mt-0.5">{pm.desc}</span>
             </label>
           ))}
         </div>

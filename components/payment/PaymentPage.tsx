@@ -8,12 +8,12 @@ import {
   Phone, Package, ChevronRight, Lock
 } from "lucide-react";
 import { formatXOF } from "@/lib/utils";
+import { PaymentLogo } from "@/components/icons/PaymentLogos";
 
 const MOBILE_MONEY_METHODS = [
   {
     id: "wave",
     name: "Wave",
-    emoji: "💙",
     description: "Paiement instantané, 0 commission",
     color: "from-blue-500 to-blue-600",
     borderColor: "border-blue-400",
@@ -22,7 +22,6 @@ const MOBILE_MONEY_METHODS = [
   {
     id: "orange_money",
     name: "Orange Money",
-    emoji: "🟠",
     description: "Disponible 24h/24, 7j/7",
     color: "from-orange-500 to-orange-600",
     borderColor: "border-orange-400",
@@ -31,7 +30,6 @@ const MOBILE_MONEY_METHODS = [
   {
     id: "free_money",
     name: "Free Money",
-    emoji: "🟢",
     description: "Transfert sans frais",
     color: "from-green-500 to-green-600",
     borderColor: "border-green-400",
@@ -210,9 +208,9 @@ export default function PaymentPage({ order }: Props) {
                   key={method.id}
                   className={`flex items-center gap-3 p-3 rounded-xl ${method.bgColor} border border-transparent`}
                 >
-                  <span className="text-2xl">{method.emoji}</span>
+                  <PaymentLogo method={method.id} className="w-9 h-9 rounded-xl shadow-sm flex-shrink-0" />
                   <div>
-                    <p className="font-medium text-text text-sm">{method.name}</p>
+                    <p className="font-semibold text-text text-sm">{method.name}</p>
                     <p className="text-text-muted text-xs">{method.description}</p>
                   </div>
                 </div>
